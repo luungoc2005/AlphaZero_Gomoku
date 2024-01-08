@@ -5,6 +5,8 @@
 
 from __future__ import print_function
 import numpy as np
+import json
+import time
 
 
 class Board(object):
@@ -30,6 +32,12 @@ class Board(object):
         self.availables = list(range(self.width * self.height))
         self.states = {}
         self.last_move = -1
+        self.json_object = {
+            "width": self.width,
+            "height": self.height,
+            "n_in_row": self.n_in_row,
+            "moves": [],
+        }
 
     def move_to_location(self, move):
         """
@@ -82,6 +90,7 @@ class Board(object):
             else self.players[1]
         )
         self.last_move = move
+        self.json_object["moves"].append(int(move))
 
     def has_a_winner(self):
         width = self.width
@@ -90,40 +99,67 @@ class Board(object):
         n = self.n_in_row
 
         moved = list(set(range(width * height)) - set(self.availables))
-        if len(moved) < self.n_in_row *2-1:
-            return False, -1
+        if len(moved) < n:
+            return False, -1, None
 
         for m in moved:
             h = m // width
             w = m % width
             player = states[m]
 
-            if (w in range(width - n + 1) and
-                    len(set(states.get(i, -1) for i in range(m, m + n))) == 1):
-                return True, player
+            for dx, dy in [(0, 1), (1, 0), (1, 1), (1, -1)]:
+                count = 1  # Start with 1 because we count the current stone
+                blocked = [False, False]  # Keep track of whether each end is blocked
 
-            if (h in range(height - n + 1) and
-                    len(set(states.get(i, -1) for i in range(m, m + n * width, width))) == 1):
-                return True, player
+                # Check in the positive direction (dx, dy)
+                for i in range(1, n + 1):
+                    x, y = w + i * dx, h + i * dy
+                    if 0 <= x < width and 0 <= y < height:
+                        if states.get(y * width + x, -1) == player:
+                            count += 1
+                        else:
+                            blocked[1] = states.get(y * width + x, -1) != -1
+                            break
+                    else:
+                        blocked[1] = True
+                        break
 
-            if (w in range(width - n + 1) and h in range(height - n + 1) and
-                    len(set(states.get(i, -1) for i in range(m, m + n * (width + 1), width + 1))) == 1):
-                return True, player
+                # Check in the negative direction (-dx, -dy)
+                for i in range(1, n + 1):
+                    x, y = w - i * dx, h - i * dy
+                    if 0 <= x < width and 0 <= y < height:
+                        if states.get(y * width + x, -1) == player:
+                            count += 1
+                        else:
+                            blocked[0] = states.get(y * width + x, -1) != -1
+                            break
+                    else:
+                        blocked[0] = True
+                        break
 
-            if (w in range(n - 1, width) and h in range(height - n + 1) and
-                    len(set(states.get(i, -1) for i in range(m, m + n * (width - 1), width - 1))) == 1):
-                return True, player
+                # Check if there is a win condition
+                if count >= n and not (count == n and any(blocked)):
+                    return True, player, [[h, w], [x, y]]
 
-        return False, -1
+        return False, -1, None
 
     def game_end(self):
         """Check whether the game is ended or not"""
-        win, winner = self.has_a_winner()
+        win, winner, winning_line = self.has_a_winner()
         if win:
-            return True, winner
+            self.json_object["winner"] = winner
+            self.do_save(winner)
+            return True, winner, winning_line
         elif not len(self.availables):
-            return True, -1
-        return False, -1
+            self.json_object["winner"] = -1
+            self.do_save(-1)
+            return True, -1, None
+        return False, -1, None
+    
+    def do_save(self, winner=0):
+        self.json_object["turns"] = len(self.json_object["moves"])
+        with open(f'./games/{time.time()}-{winner}.json', 'w') as outfile:
+            json.dump(self.json_object, outfile)
 
     def get_current_player(self):
         return self.current_player
@@ -178,7 +214,7 @@ class Game(object):
             self.board.do_move(move)
             if is_shown:
                 self.graphic(self.board, player1.player, player2.player)
-            end, winner = self.board.game_end()
+            end, winner, _ = self.board.game_end()
             if end:
                 if is_shown:
                     if winner != -1:
@@ -206,7 +242,7 @@ class Game(object):
             self.board.do_move(move)
             if is_shown:
                 self.graphic(self.board, p1, p2)
-            end, winner = self.board.game_end()
+            end, winner, _ = self.board.game_end()
             if end:
                 # winner from the perspective of the current player of each state
                 winners_z = np.zeros(len(current_players))
