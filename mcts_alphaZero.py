@@ -121,7 +121,7 @@ class MCTS(object):
         # for the current player.
         action_probs, leaf_value = self._policy(state)
         # Check for end of game.
-        end, winner = state.game_end()
+        end, winner, _ = state.game_end()
         if not end:
             node.expand(action_probs)
         else:
