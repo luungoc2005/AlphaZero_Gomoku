@@ -16,7 +16,7 @@ from mcts_alphaZero import MCTSPlayer
 from policy_value_net_pytorch import PolicyValueNet  # Pytorch
 # from policy_value_net_tensorflow import PolicyValueNet # Tensorflow
 # from policy_value_net_keras import PolicyValueNet # Keras
-
+from torch.utils.tensorboard import SummaryWriter
 
 class TrainPipeline():
     def __init__(self, init_model=None):
@@ -59,6 +59,9 @@ class TrainPipeline():
                                       c_puct=self.c_puct,
                                       n_playout=self.n_playout,
                                       is_selfplay=1)
+        # tensorboard
+        self.tf_writer = SummaryWriter()
+        self.global_step = 0
 
     def get_equi_data(self, play_data):
         """augment the data set by rotation and flipping
@@ -96,9 +99,9 @@ class TrainPipeline():
     def policy_update(self):
         """update the policy-value net"""
         mini_batch = random.sample(self.data_buffer, self.batch_size)
-        state_batch = [data[0] for data in mini_batch]
-        mcts_probs_batch = [data[1] for data in mini_batch]
-        winner_batch = [data[2] for data in mini_batch]
+        state_batch = np.array([data[0] for data in mini_batch])
+        mcts_probs_batch = np.array([data[1] for data in mini_batch])
+        winner_batch = np.array([data[2] for data in mini_batch])
         old_probs, old_v = self.policy_value_net.policy_value(state_batch)
         for i in range(self.epochs):
             loss, entropy = self.policy_value_net.train_step(
@@ -120,11 +123,11 @@ class TrainPipeline():
             self.lr_multiplier *= 1.5
 
         explained_var_old = (1 -
-                             np.var(np.array(winner_batch) - old_v.flatten()) /
-                             np.var(np.array(winner_batch)))
+                             np.var(winner_batch - old_v.flatten()) /
+                             np.var(winner_batch))
         explained_var_new = (1 -
-                             np.var(np.array(winner_batch) - new_v.flatten()) /
-                             np.var(np.array(winner_batch)))
+                             np.var(winner_batch - new_v.flatten()) /
+                             np.var(winner_batch))
         print(("kl:{:.5f},"
                "lr_multiplier:{:.3f},"
                "loss:{},"
@@ -137,6 +140,11 @@ class TrainPipeline():
                         entropy,
                         explained_var_old,
                         explained_var_new))
+        self.tf_writer.add_scalar('train/kl', kl)
+        self.tf_writer.add_scalar('train/loss', loss)
+        self.tf_writer.add_scalar('train/entropy', entropy)
+        self.tf_writer.add_scalar('train/lr_multiplier', self.lr_multiplier)
+        self.tf_writer.flush()
         return loss, entropy
 
     def policy_evaluate(self, n_games=10):
@@ -166,6 +174,7 @@ class TrainPipeline():
         """run the training pipeline"""
         try:
             for i in range(self.game_batch_num):
+                self.global_step += 1
                 self.collect_selfplay_data(self.play_batch_size)
                 print("batch i:{}, episode_len:{}".format(
                         i+1, self.episode_len))
@@ -176,6 +185,7 @@ class TrainPipeline():
                 if (i+1) % self.check_freq == 0:
                     print("current self-play batch: {}".format(i+1))
                     win_ratio = self.policy_evaluate()
+                    self.tf_writer.add_scalar('test/win_ratio', win_ratio)
                     self.policy_value_net.save_model('./current_policy.model')
                     if win_ratio > self.best_win_ratio:
                         print("New best policy!!!!!!!!")

@@ -9,7 +9,7 @@ from uuid import uuid4
 import json
 
 app = FastAPI()
-BASE_DIR = './games/'
+GAMES_FILE = './games.json'
 STATIC_DIR = './viewer/dist/'
 
 app.mount("/assets", StaticFiles(directory=path.join(STATIC_DIR, 'assets')), name="static")
@@ -24,15 +24,17 @@ async def root_assets(item_path: str):
 
 @app.get("/items/")
 async def items_root():
-    return {"items": list(sorted(listdir(BASE_DIR)))}
+    with open(GAMES_FILE, 'r') as input_file:
+        return [json.loads(item)['name'] for item in input_file.readlines()]
 
 @app.get("/items/{item_id}")
 async def item_read(item_id: str, q: Union[str, None] = None):
-    if path.isfile(f'{BASE_DIR}{item_id}'):
-        with open(f'{BASE_DIR}{item_id}', 'r') as infile:
-            return json.load(infile)
-    else:
-        raise exceptions.HTTPException(status_code=404, detail="Item not found")
+    with open(GAMES_FILE, 'r') as input_file:
+        for line in input_file.readlines():
+            json_object = json.loads(line)
+            if json_object['name'] == item_id:
+                return json_object
+    raise exceptions.HTTPException(status_code=404, detail="Item not found")
     
 GAMES = {}
 from game import Board, Game

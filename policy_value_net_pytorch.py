@@ -14,7 +14,7 @@ from torch.autograd import Variable
 import numpy as np
 
 
-DEVICE = 'mps'
+DEVICE = 'cuda'
 
 
 def set_learning_rate(optimizer, lr):
@@ -86,12 +86,12 @@ class PolicyValueNet():
         output: a batch of action probabilities and state values
         """
         if self.use_gpu:
-            state_batch = Variable(torch.FloatTensor(state_batch).to(DEVICE))
+            state_batch = torch.FloatTensor(state_batch).to(DEVICE)
             log_act_probs, value = self.policy_value_net(state_batch)
             act_probs = np.exp(log_act_probs.data.cpu().numpy())
             return act_probs, value.data.cpu().numpy()
         else:
-            state_batch = Variable(torch.FloatTensor(state_batch))
+            state_batch = torch.FloatTensor(state_batch)
             log_act_probs, value = self.policy_value_net(state_batch)
             act_probs = np.exp(log_act_probs.data.numpy())
             return act_probs, value.data.numpy()
@@ -107,11 +107,11 @@ class PolicyValueNet():
                 -1, 4, self.board_width, self.board_height))
         if self.use_gpu:
             log_act_probs, value = self.policy_value_net(
-                    Variable(torch.from_numpy(current_state)).float().to(DEVICE))
+                    torch.from_numpy(current_state).float().to(DEVICE))
             act_probs = np.exp(log_act_probs.data.cpu().numpy().flatten())
         else:
             log_act_probs, value = self.policy_value_net(
-                    Variable(torch.from_numpy(current_state)).float())
+                    torch.from_numpy(current_state).float())
             act_probs = np.exp(log_act_probs.data.numpy().flatten())
         act_probs = zip(legal_positions, act_probs[legal_positions])
         value = value.data[0][0]
@@ -121,13 +121,13 @@ class PolicyValueNet():
         """perform a training step"""
         # wrap in Variable
         if self.use_gpu:
-            state_batch = Variable(torch.FloatTensor(state_batch).to(DEVICE))
-            mcts_probs = Variable(torch.FloatTensor(mcts_probs).to(DEVICE))
-            winner_batch = Variable(torch.FloatTensor(winner_batch).to(DEVICE))
+            state_batch = torch.FloatTensor(state_batch).to(DEVICE)
+            mcts_probs = torch.FloatTensor(mcts_probs).to(DEVICE)
+            winner_batch = torch.FloatTensor(winner_batch).to(DEVICE)
         else:
-            state_batch = Variable(torch.FloatTensor(state_batch))
-            mcts_probs = Variable(torch.FloatTensor(mcts_probs))
-            winner_batch = Variable(torch.FloatTensor(winner_batch))
+            state_batch = torch.FloatTensor(state_batch)
+            mcts_probs = torch.FloatTensor(mcts_probs)
+            winner_batch = torch.FloatTensor(winner_batch)
 
         # zero the parameter gradients
         self.optimizer.zero_grad()

@@ -148,18 +148,18 @@ class Board(object):
         win, winner, winning_line = self.has_a_winner()
         if win:
             self.json_object["winner"] = winner
-            self.do_save(winner)
             return True, winner, winning_line
         elif not len(self.availables):
             self.json_object["winner"] = -1
-            self.do_save(-1)
             return True, -1, None
         return False, -1, None
     
     def do_save(self, winner=0):
         self.json_object["turns"] = len(self.json_object["moves"])
-        with open(f'./games/{time.time()}-{winner}.json', 'w') as outfile:
+        self.json_object["name"] = f'{time.time()}-{winner}'
+        with open(f'./games.json', 'a') as outfile:
             json.dump(self.json_object, outfile)
+            outfile.write('\n')
 
     def get_current_player(self):
         return self.current_player
@@ -216,6 +216,7 @@ class Game(object):
                 self.graphic(self.board, player1.player, player2.player)
             end, winner, _ = self.board.game_end()
             if end:
+                self.board.do_save(winner)
                 if is_shown:
                     if winner != -1:
                         print("Game end. Winner is", players[winner])
@@ -244,6 +245,7 @@ class Game(object):
                 self.graphic(self.board, p1, p2)
             end, winner, _ = self.board.game_end()
             if end:
+                self.board.do_save(winner)
                 # winner from the perspective of the current player of each state
                 winners_z = np.zeros(len(current_players))
                 if winner != -1:
