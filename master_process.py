@@ -35,20 +35,20 @@ class MasterProcess():
             while True:
                 msg = pipes[id].recv()
                 if msg == "saved":
-                    print("Master process (0) saved his weights.")
+                    print("Master process (0) saved weights.")
                     for j in self.Dlist:
                         print(str(j)+" processs load")
                         self.Dlist.remove(j)
                         pipes[j].send("load")
 
                 else:
-                    print(len(msg[1]),'master')
+                    # print(len(msg[1]),'master')
                     id = msg[0]
                     self.Dlist.append(id)
-                    print(self.Dlist)
+                    # print(self.Dlist)
                     self.data_buffer.extend(msg[1])
                     self.count+=1
-                    print(len(self.data_buffer))
+                    # print(len(self.data_buffer))
                     self.data=msg[1]
                     print("Process "+str(id)+" returns ")
                     if len(self.data_buffer)<512:

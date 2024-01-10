@@ -68,7 +68,7 @@ class AgentProcess(Process):
             a = time.time()
             winner, play_data = self.game.start_self_play(mcts_player,
                                                           temp=self.temp, is_shown=0)
-            print(time.time() - a, 'game play')
+            print('self play time: ', time.time() - a)
             play_data = list(play_data)[:]
             episode_len = len(play_data)
             # augment the data
@@ -161,11 +161,9 @@ class AgentProcess(Process):
             Evaluate the trained policy by playing against the pure MCTS player
             Note: this is only for monitoring the progress of training
             """
-            print('eval')
             current_mcts_player = MCTSPlayer(self.agent.policy_value_fn,c_puct=self.c_puct,n_playout=self.n_playout)
             pure_mcts_player = MCTS_Pure(c_puct=5, n_playout=self.pure_mcts_playout_num)
             win_cnt = defaultdict(int)
-            print('eval run')
             for i in range(n_games):
                 winner = self.game.start_play(current_mcts_player,
                                               pure_mcts_player,
@@ -221,12 +219,11 @@ class AgentProcess(Process):
                             self.best_win_ratio = 0.0
 
                 self.conn.send("saved")
-
-            print('treatQueue Out '+ str(os.getpid()))
+            # print('treatQueue Out '+ str(os.getpid()))
 
         while True:
             if self.id!= 0:
                 playdata=collect_selfplay_data()
-                print("Process "+str(self.id)+" finished playing."+str(len(playdata)))
+                print("Process "+str(self.id)+" finished playing. Batch size: "+str(len(playdata)))
                 self.conn.send([self.id,playdata])
             treatQueue()
