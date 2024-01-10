@@ -25,7 +25,9 @@ async def root_assets(item_path: str):
 @app.get("/items/")
 async def items_root():
     with open(GAMES_FILE, 'r') as input_file:
-        return [json.loads(item)['name'] for item in input_file.readlines()]
+        return {
+            "items": [json.loads(item)['name'] for item in input_file.readlines()]
+        }
 
 @app.get("/items/{item_id}")
 async def item_read(item_id: str, q: Union[str, None] = None):
