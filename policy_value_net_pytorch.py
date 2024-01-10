@@ -10,11 +10,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from torch.autograd import Variable
 import numpy as np
+import os
 
 
-DEVICE = 'cuda'
+DEVICE = 'mps'
 
 
 def set_learning_rate(optimizer, lr):
@@ -76,9 +76,8 @@ class PolicyValueNet():
         self.optimizer = optim.Adam(self.policy_value_net.parameters(),
                                     weight_decay=self.l2_const)
 
-        if model_file:
-            net_params = torch.load(model_file)
-            self.policy_value_net.load_state_dict(net_params)
+        if model_file and os.path.exists(model_file):
+            self.restore_model(model_file)
 
     def policy_value(self, state_batch):
         """
@@ -160,3 +159,7 @@ class PolicyValueNet():
         """ save model params to file """
         net_params = self.get_policy_param()  # get model params
         torch.save(net_params, model_file)
+
+    def restore_model(self, model_file):
+        net_params = torch.load(model_file)
+        self.policy_value_net.load_state_dict(net_params)
