@@ -17,13 +17,14 @@ from policy_value_net_pytorch import PolicyValueNet  # Pytorch
 # from policy_value_net_tensorflow import PolicyValueNet # Tensorflow
 # from policy_value_net_keras import PolicyValueNet # Keras
 from torch.utils.tensorboard import SummaryWriter
+import torch
 
 class TrainPipeline():
     def __init__(self, init_model=None):
         # params of the board and the game
-        self.board_width = 15
-        self.board_height = 15
-        self.n_in_row = 5
+        self.board_width = 8
+        self.board_height = 8
+        self.n_in_row = 4
         self.board = Board(width=self.board_width,
                            height=self.board_height,
                            n_in_row=self.n_in_row)
@@ -55,12 +56,13 @@ class TrainPipeline():
             # start training from a new policy-value net
             self.policy_value_net = PolicyValueNet(self.board_width,
                                                    self.board_height)
+        # self.policy_value_net = torch.compile(self.policy_value_net)
         self.mcts_player = MCTSPlayer(self.policy_value_net.policy_value_fn,
                                       c_puct=self.c_puct,
                                       n_playout=self.n_playout,
                                       is_selfplay=1)
         # tensorboard
-        self.tf_writer = SummaryWriter()
+        self.tf_writer = SummaryWriter(comment=f'{self.board_width}x{self.board_height}-{self.n_in_row}')
         self.global_step = 0
 
     def get_equi_data(self, play_data):
@@ -140,10 +142,10 @@ class TrainPipeline():
                         entropy,
                         explained_var_old,
                         explained_var_new))
-        self.tf_writer.add_scalar('train/kl', kl)
-        self.tf_writer.add_scalar('train/loss', loss)
-        self.tf_writer.add_scalar('train/entropy', entropy)
-        self.tf_writer.add_scalar('train/lr_multiplier', self.lr_multiplier)
+        self.tf_writer.add_scalar('train/kl', kl, self.global_step)
+        self.tf_writer.add_scalar('train/loss', loss, self.global_step)
+        self.tf_writer.add_scalar('train/entropy', entropy, self.global_step)
+        self.tf_writer.add_scalar('train/lr_multiplier', self.lr_multiplier, self.global_step)
         self.tf_writer.flush()
         return loss, entropy
 

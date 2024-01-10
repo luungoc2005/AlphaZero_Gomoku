@@ -127,7 +127,7 @@ class MCTS(object):
 
         action_probs, _ = self._policy(state)
         # Check for end of game
-        end, winner = state.game_end()
+        end, winner, _ = state.game_end()
         if not end:
             node.expand(action_probs)
         # Evaluate the leaf node by random rollout
@@ -142,7 +142,7 @@ class MCTS(object):
         """
         player = state.get_current_player()
         for i in range(limit):
-            end, winner = state.game_end()
+            end, winner, _ = state.game_end()
             if end:
                 break
             action_probs = rollout_policy_fn(state)
