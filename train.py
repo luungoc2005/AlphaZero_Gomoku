@@ -187,7 +187,7 @@ class TrainPipeline():
                 if (i+1) % self.check_freq == 0:
                     print("current self-play batch: {}".format(i+1))
                     win_ratio = self.policy_evaluate()
-                    self.tf_writer.add_scalar('test/win_ratio', win_ratio)
+                    self.tf_writer.add_scalar('test/win_ratio', win_ratio, self.global_step)
                     self.policy_value_net.save_model('./current_policy.model')
                     if win_ratio > self.best_win_ratio:
                         print("New best policy!!!!!!!!")

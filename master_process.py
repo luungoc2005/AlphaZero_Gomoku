@@ -20,10 +20,9 @@ class MasterProcess():
 
     def train_agents(self):
         pipes = {}
-        for i in range(8):
+        for i in range(4):
             parent_conn, child_conn = Pipe()
             pipes[i] = parent_conn
-            print(i)
             p = AgentProcess(conn=child_conn, id=i)
             p.start()
             self.processes[i] = p
@@ -37,9 +36,9 @@ class MasterProcess():
                 if msg == "saved":
                     print("Master process (0) saved weights.")
                     for j in self.Dlist:
-                        print(str(j)+" processs load")
                         self.Dlist.remove(j)
                         pipes[j].send("load")
+                        print(str(j)+" loading new weights")
 
                 else:
                     # print(len(msg[1]),'master')
@@ -50,14 +49,12 @@ class MasterProcess():
                     self.count+=1
                     # print(len(self.data_buffer))
                     self.data=msg[1]
-                    print("Process "+str(id)+" returns ")
                     if len(self.data_buffer)<512:
                         pipes[id].send("load")
                         pipes[0].send(["collect", msg[1]])
 
 
         threads_listen = []
-        print("Threads to start")
         for id in pipes:
             t = threading.Thread(target=listenToAgent, args=(id,))
             t.start()

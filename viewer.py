@@ -8,6 +8,13 @@ from fastapi.responses import RedirectResponse, FileResponse
 from uuid import uuid4
 import json
 
+import mimetypes
+mimetypes.init()
+
+mimetypes.add_type('application/javascript', '.js')
+mimetypes.add_type('text/css', '.css')
+mimetypes.add_type('image/svg+xml', '.svg')
+
 app = FastAPI()
 GAMES_FILE = './games.json'
 STATIC_DIR = './viewer/dist/'

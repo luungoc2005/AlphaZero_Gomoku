@@ -44,8 +44,6 @@ class AgentProcess(Process):
         self.pure_mcts_playout_num=1000
         self.tf_writer = None
 
-        print(self.game)
-
     def run(self):
 
         buffer_size = 10000
@@ -99,6 +97,10 @@ class AgentProcess(Process):
 
             return extend_data
 
+        def create_writer():
+            if self.tf_writer is None:
+                self.tf_writer = SummaryWriter(comment=f'{variables.board_width}x{variables.board_height}-{self.n_in_row}')
+
         def policy_update(data_buffer):
             """update the policy-value net"""
 
@@ -145,8 +147,7 @@ class AgentProcess(Process):
                             explained_var_old,
                             explained_var_new))
             if self.id == 0:
-                if self.tf_writer is None:
-                    self.tf_writer = SummaryWriter(comment=f'{variables.board_width}x{variables.board_height}-{self.n_in_row}')
+                create_writer()
                 self.tf_writer.add_scalar('train/kl', kl, self.count)
                 self.tf_writer.add_scalar('train/loss', loss, self.count)
                 self.tf_writer.add_scalar('train/entropy', entropy, self.count)
@@ -174,20 +175,19 @@ class AgentProcess(Process):
             print("num_playouts:{}, win: {}, lose: {}, tie:{}".format(
                 self.pure_mcts_playout_num,
                 win_cnt[1], win_cnt[2], win_cnt[-1]))
+            create_writer()
+            self.tf_writer.add_scalar('test/win_ratio', win_ratio, self.count)
             return win_ratio
 
 
         def treatQueue():
-            print('treatQueue In ' + str(os.getpid()))
             t0 = time.time()
             try:
                 msg = self.conn.recv()
             except Exception as e:
                 msg = self.conn.recv()
 
-                print(str(e)+" "+str(self.id)+" "+str(os.getpid()))
             if msg == "load":
-                print(str(os.getpid())+' start load')
                 self.agent.restore_model(variables.init_model)
                 print("Process "+str(os.getpid())+" loaded the master (0) model.")
 
@@ -200,7 +200,6 @@ class AgentProcess(Process):
                 print("Master process is training ... "+str(self.count))
 
                 data_buffer.extend(msg[1])
-                print(len(msg[1]),len(data_buffer))
                 policy_update(data_buffer)
                 self.agent.save_model(variables.init_model)
                 print("Master process finished training. Time : "+str(time.time()-t0)+" \n")
