@@ -26,13 +26,17 @@ class ResidualBlock(nn.Module):
     def __init__(self, channels):
         super().__init__()
         self.conv0 = nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=3, padding=1)
+        self.norm0 = nn.BatchNorm2d(channels)
         self.conv1 = nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=3, padding=1)
+        self.norm1 = nn.BatchNorm2d(channels)
 
     def forward(self, x):
         inputs = x
         x = self.conv0(x)
+        x = self.norm0(x)
         x = nn.functional.relu(x)
         x = self.conv1(x)
+        x = self.norm1(x)
         x = x + inputs
         x = nn.functional.relu(x)
         return x
@@ -43,11 +47,13 @@ class ConvSequence(nn.Module):
         self._input_shape = input_shape
         self._out_channels = out_channels
         self.conv = nn.Conv2d(in_channels=self._input_shape[0], out_channels=self._out_channels, kernel_size=3, padding=1)
+        self.norm = nn.BatchNorm2d(self._out_channels)
         self.res_block0 = ResidualBlock(self._out_channels)
         self.res_block1 = ResidualBlock(self._out_channels)
 
     def forward(self, x):
         x = self.conv(x)
+        x = self.norm(x)
         x = self.res_block0(x)
         x = self.res_block1(x)
         return x
@@ -64,18 +70,20 @@ class ImpalaNet(nn.Module):
         # common layers
         shape = (4, self.board_width, self.board_height)
         conv_seqs = []
-        for out_channels in [16, 32, 32]:
+        for out_channels in [16, 32, 64]:
             conv_seq = ConvSequence(shape, out_channels)
             shape = (out_channels, self.board_width, self.board_height)
             conv_seqs.append(conv_seq)
         self.net = nn.Sequential(*conv_seqs)
     
         # action policy layers
-        self.act_conv1 = nn.Conv2d(32, 4, kernel_size=1)
+        self.act_conv1 = nn.Conv2d(shape[0], 4, kernel_size=1)
+        self.act_norm = nn.BatchNorm2d(4)
         self.act_fc1 = nn.Linear(4*board_width*board_height,
                                  board_width*board_height)
         # state value layers
-        self.val_conv1 = nn.Conv2d(32, 2, kernel_size=1)
+        self.val_conv1 = nn.Conv2d(shape[0], 2, kernel_size=1)
+        self.val_norm = nn.BatchNorm2d(2)
         self.val_fc1 = nn.Linear(2*board_width*board_height, 64)
         self.val_fc2 = nn.Linear(64, 1)
 
@@ -84,10 +92,12 @@ class ImpalaNet(nn.Module):
         x = self.net(state_input)
         # action policy layers
         x_act = F.relu(self.act_conv1(x))
+        x_act = self.act_norm(x_act)
         x_act = x_act.view(-1, 4*self.board_width*self.board_height)
         x_act = F.log_softmax(self.act_fc1(x_act))
         # state value layers
         x_val = F.relu(self.val_conv1(x))
+        x_val = self.val_norm(x_val)
         x_val = x_val.view(-1, 2*self.board_width*self.board_height)
         x_val = F.relu(self.val_fc1(x_val))
         x_val = F.tanh(self.val_fc2(x_val))
